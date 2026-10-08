@@ -25,15 +25,23 @@ export function useNotes() {
   const addNote = useCallback((rect: Rect, color: NoteColor) => {
     setNotes((current) => {
       if (current.length >= MAX_NOTES) return current
-      return [...current, {
-        id: crypto.randomUUID(), text: '', color, ...rect,
-        zIndex: Math.max(0, ...current.map((note) => note.zIndex)) + 1,
-      }]
+      return [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          text: '',
+          color,
+          ...rect,
+          zIndex: Math.max(0, ...current.map((note) => note.zIndex)) + 1,
+        },
+      ]
     })
   }, [])
 
   const updateNote = useCallback((id: string, changes: Partial<Note>) => {
-    setNotes((current) => current.map((note) => note.id === id ? { ...note, ...changes } : note))
+    setNotes((current) =>
+      current.map((note) => (note.id === id ? { ...note, ...changes } : note)),
+    )
   }, [])
 
   const bringToFront = useCallback((id: string) => {
@@ -41,11 +49,17 @@ export function useNotes() {
       const selected = current.find((note) => note.id === id)
       const topZIndex = Math.max(0, ...current.map((note) => note.zIndex))
       if (!selected || selected.zIndex === topZIndex) return current
-      return current.map((note) => note.id === id ? { ...note, zIndex: topZIndex + 1 } : note)
+      return current.map((note) =>
+        note.id === id ? { ...note, zIndex: topZIndex + 1 } : note,
+      )
     })
   }, [])
 
-  const removeNote = useCallback((id: string) => setNotes((current) => current.filter((note) => note.id !== id)), [])
+  const removeNote = useCallback(
+    (id: string) =>
+      setNotes((current) => current.filter((note) => note.id !== id)),
+    [],
+  )
   const clearNotes = useCallback(() => setNotes([]), [])
 
   return { notes, addNote, updateNote, bringToFront, removeNote, clearNotes }

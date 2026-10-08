@@ -21,7 +21,16 @@ type StickyNoteProps = {
   isOverTrash: (rect: Rect) => boolean
 }
 
-export function StickyNote({ note, boardWidth, boardHeight, onChange, onFocus, onRemove, onTrashChange, isOverTrash }: StickyNoteProps) {
+export function StickyNote({
+  note,
+  boardWidth,
+  boardHeight,
+  onChange,
+  onFocus,
+  onRemove,
+  onTrashChange,
+  isOverTrash,
+}: StickyNoteProps) {
   const drag = useRef<DragState | null>(null)
   const resize = useRef<DragState | null>(null)
 
@@ -40,8 +49,20 @@ export function StickyNote({ note, boardWidth, boardHeight, onChange, onFocus, o
   }
   const move = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!drag.current) return
-    const x = Math.max(0, Math.min(boardWidth - note.width, drag.current.noteX + event.clientX - drag.current.startX))
-    const y = Math.max(0, Math.min(boardHeight - 42, drag.current.noteY + event.clientY - drag.current.startY))
+    const x = Math.max(
+      0,
+      Math.min(
+        boardWidth - note.width,
+        drag.current.noteX + event.clientX - drag.current.startX,
+      ),
+    )
+    const y = Math.max(
+      0,
+      Math.min(
+        boardHeight - 42,
+        drag.current.noteY + event.clientY - drag.current.startY,
+      ),
+    )
     drag.current.currentX = x
     drag.current.currentY = y
     onChange(note.id, { x, y })
@@ -68,21 +89,79 @@ export function StickyNote({ note, boardWidth, boardHeight, onChange, onFocus, o
     event.preventDefault()
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
-    resize.current = { startX: event.clientX, startY: event.clientY, noteX: note.width, noteY: note.height, currentX: note.width, currentY: note.height }
+    resize.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      noteX: note.width,
+      noteY: note.height,
+      currentX: note.width,
+      currentY: note.height,
+    }
     onFocus(note.id)
   }
   const resizeNote = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!resize.current) return
-    const width = Math.max(MIN_NOTE_WIDTH, Math.min(boardWidth - note.x, resize.current.noteX + event.clientX - resize.current.startX))
-    const height = Math.max(MIN_NOTE_HEIGHT, Math.min(boardHeight - note.y, resize.current.noteY + event.clientY - resize.current.startY))
+    const width = Math.max(
+      MIN_NOTE_WIDTH,
+      Math.min(
+        boardWidth - note.x,
+        resize.current.noteX + event.clientX - resize.current.startX,
+      ),
+    )
+    const height = Math.max(
+      MIN_NOTE_HEIGHT,
+      Math.min(
+        boardHeight - note.y,
+        resize.current.noteY + event.clientY - resize.current.startY,
+      ),
+    )
     onChange(note.id, { width, height })
   }
 
   return (
-    <article className={`sticky-note color-${note.color}`} style={{ left: note.x, top: note.y, width: note.width, height: note.height, zIndex: note.zIndex }} onPointerDown={() => onFocus(note.id)}>
-      <div className="note-grip" onPointerDown={startMove} onPointerMove={move} onPointerUp={finishMove} onPointerCancel={cancelMove} aria-label="Drag note"><span /><span /><span /></div>
-      <textarea value={note.text} onChange={(event) => onChange(note.id, { text: event.target.value })} placeholder="Write something…" aria-label="Note text" spellCheck="true" />
-      <button className="resize-handle" type="button" onPointerDown={startResize} onPointerMove={resizeNote} onPointerUp={() => { resize.current = null }} onPointerCancel={() => { resize.current = null }} aria-label="Resize note" />
+    <article
+      className={`sticky-note color-${note.color}`}
+      style={{
+        left: note.x,
+        top: note.y,
+        width: note.width,
+        height: note.height,
+        zIndex: note.zIndex,
+      }}
+      onPointerDown={() => onFocus(note.id)}
+    >
+      <div
+        className="note-grip"
+        onPointerDown={startMove}
+        onPointerMove={move}
+        onPointerUp={finishMove}
+        onPointerCancel={cancelMove}
+        aria-label="Drag note"
+      >
+        <span />
+        <span />
+        <span />
+      </div>
+      <textarea
+        value={note.text}
+        onChange={(event) => onChange(note.id, { text: event.target.value })}
+        placeholder="Write something…"
+        aria-label="Note text"
+        spellCheck="true"
+      />
+      <button
+        className="resize-handle"
+        type="button"
+        onPointerDown={startResize}
+        onPointerMove={resizeNote}
+        onPointerUp={() => {
+          resize.current = null
+        }}
+        onPointerCancel={() => {
+          resize.current = null
+        }}
+        aria-label="Resize note"
+      />
     </article>
   )
 }
