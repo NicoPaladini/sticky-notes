@@ -15,7 +15,7 @@ export function useNotes() {
   const [notes, setNotes] = useState<Note[]>(loadNotes)
 
   useEffect(() => {
-    // Wait briefly so dragging does not write to storage on every pointer move.
+    // Debounce persistence during rapid changes such as typing.
     const timeout = window.setTimeout(() => {
       localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes))
     }, 200)

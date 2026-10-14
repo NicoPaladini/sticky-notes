@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent,
@@ -21,9 +23,11 @@ import { useNotes } from './hooks/useNotes'
 import type { NoteColor, Rect } from './types'
 
 type Point = { x: number; y: number }
+const CANVAS_EDGE_PADDING = 32
 
 function App() {
-  const boardRef = useRef<HTMLElement>(null)
+  const viewportRef = useRef<HTMLElement>(null)
+  const boardRef = useRef<HTMLDivElement>(null)
   const trashRef = useRef<HTMLDivElement>(null)
   const createStart = useRef<Point | null>(null)
   const { notes, addNote, updateNote, bringToFront, removeNote, clearNotes } =
@@ -32,24 +36,46 @@ function App() {
   const [isCreating, setIsCreating] = useState(false)
   const [draft, setDraft] = useState<Rect | null>(null)
   const [isTrashActive, setIsTrashActive] = useState(false)
-  const [boardSize, setBoardSize] = useState({
+  const [viewportSize, setViewportSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight - TOOLBAR_HEIGHT,
   })
 
   useEffect(() => {
     const updateSize = () => {
-      if (boardRef.current)
-        setBoardSize({
-          width: boardRef.current.clientWidth,
-          height: boardRef.current.clientHeight,
+      if (viewportRef.current)
+        setViewportSize({
+          width: viewportRef.current.clientWidth,
+          height: viewportRef.current.clientHeight,
         })
     }
     updateSize()
     const observer = new ResizeObserver(updateSize)
-    if (boardRef.current) observer.observe(boardRef.current)
+    if (viewportRef.current) observer.observe(viewportRef.current)
     return () => observer.disconnect()
   }, [])
+
+  const boardSize = useMemo(() => {
+    const contentWidth = Math.max(
+      0,
+      ...notes.map((note) => note.x + note.width),
+    )
+    const contentHeight = Math.max(
+      0,
+      ...notes.map((note) => note.y + note.height),
+    )
+
+    return {
+      width:
+        contentWidth > viewportSize.width
+          ? contentWidth + CANVAS_EDGE_PADDING
+          : viewportSize.width,
+      height:
+        contentHeight > viewportSize.height
+          ? contentHeight + CANVAS_EDGE_PADDING
+          : viewportSize.height,
+    }
+  }, [notes, viewportSize])
 
   const boardPoint = (event: ReactPointerEvent<HTMLElement>): Point => {
     const bounds = event.currentTarget.getBoundingClientRect()
@@ -140,7 +166,7 @@ function App() {
       color,
     )
   }
-  const isOverTrash = (rect: Rect) => {
+  const isOverTrash = useCallback((rect: Rect) => {
     const trashBounds = trashRef.current?.getBoundingClientRect()
     const boardBounds = boardRef.current?.getBoundingClientRect()
     if (!trashBounds || !boardBounds) return false
@@ -156,10 +182,15 @@ function App() {
       noteBottom >= trashBounds.top &&
       noteTop <= trashBounds.bottom
     )
-  }
-  const confirmClear = () => {
+  }, [])
+  const handleCreate = useCallback(() => {
+    setIsCreating((value) => !value)
+    setDraft(null)
+    createStart.current = null
+  }, [])
+  const confirmClear = useCallback(() => {
     if (notes.length > 0 && window.confirm('Remove all notes?')) clearNotes()
-  }
+  }, [clearNotes, notes.length])
 
   return (
     <main className="app-shell">
@@ -180,64 +211,68 @@ function App() {
         isCreating={isCreating}
         noteCount={notes.length}
         onColorChange={setColor}
-        onCreate={() => {
-          setIsCreating((value) => !value)
-          setDraft(null)
-          createStart.current = null
-        }}
+        onCreate={handleCreate}
         onClear={confirmClear}
       />
-      <section
-        ref={boardRef}
-        className={`board${isCreating ? ' creating' : ''}`}
-        onPointerDown={startCreating}
-        onPointerMove={drawDraft}
-        onPointerUp={finishCreating}
-        onPointerCancel={() => {
-          createStart.current = null
-          setDraft(null)
-        }}
-        onDoubleClick={addOnDoubleClick}
-      >
-        {notes.length === 0 && !isCreating && (
-          <div className="empty-state">
-            <span>+</span>
-            <h2>Your board is empty</h2>
-            <p>Choose a color, then add your first note.</p>
-            <button type="button" onClick={() => setIsCreating(true)}>
-              Create a note
-            </button>
-          </div>
-        )}
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            boardWidth={boardSize.width}
-            boardHeight={boardSize.height}
-            onChange={updateNote}
-            onFocus={bringToFront}
-            onRemove={removeNote}
-            onTrashChange={setIsTrashActive}
-            isOverTrash={isOverTrash}
-          />
-        ))}
-        {draft && (
+      <div className="board-shell">
+        <section
+          ref={viewportRef}
+          className={`board${isCreating ? ' creating' : ''}`}
+        >
           <div
-            className={`note-draft color-${color}`}
-            style={{
-              left: draft.x,
-              top: draft.y,
-              width: draft.width,
-              height: draft.height,
+            ref={boardRef}
+            className="board-canvas"
+            style={{ width: boardSize.width, height: boardSize.height }}
+            onPointerDown={startCreating}
+            onPointerMove={drawDraft}
+            onPointerUp={finishCreating}
+            onPointerCancel={() => {
+              createStart.current = null
+              setDraft(null)
             }}
-          />
-        )}
-        {isCreating && !draft && (
-          <div className="create-hint">
-            Click and drag anywhere to draw your note
+            onDoubleClick={addOnDoubleClick}
+          >
+            {notes.length === 0 && !isCreating && (
+              <div className="empty-state">
+                <span>+</span>
+                <h2>Your board is empty</h2>
+                <p>Choose a color, then add your first note.</p>
+                <button type="button" onClick={() => setIsCreating(true)}>
+                  Create a note
+                </button>
+              </div>
+            )}
+            {notes.map((note) => (
+              <StickyNote
+                key={note.id}
+                note={note}
+                boardWidth={boardSize.width}
+                boardHeight={boardSize.height}
+                onChange={updateNote}
+                onFocus={bringToFront}
+                onRemove={removeNote}
+                onTrashChange={setIsTrashActive}
+                isOverTrash={isOverTrash}
+              />
+            ))}
+            {draft && (
+              <div
+                className={`note-draft color-${color}`}
+                style={{
+                  left: draft.x,
+                  top: draft.y,
+                  width: draft.width,
+                  height: draft.height,
+                }}
+              />
+            )}
+            {isCreating && !draft && (
+              <div className="create-hint">
+                Click and drag anywhere to draw your note
+              </div>
+            )}
           </div>
-        )}
+        </section>
         <div
           ref={trashRef}
           className={`trash-zone${isTrashActive ? ' active' : ''}`}
@@ -247,7 +282,7 @@ function App() {
             {isTrashActive ? 'Release to delete' : 'Drag here to delete'}
           </span>
         </div>
-      </section>
+      </div>
     </main>
   )
 }

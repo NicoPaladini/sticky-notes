@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { MAX_NOTES, NOTE_COLORS } from '../constants'
 import type { NoteColor } from '../types'
 import { NoteIcon, PlusIcon, TrashIcon } from './Icons'
@@ -11,7 +12,7 @@ type ToolbarProps = {
   onClear: () => void
 }
 
-export function Toolbar({
+export const Toolbar = memo(function Toolbar({
   color,
   isCreating,
   noteCount,
@@ -74,4 +75,4 @@ export function Toolbar({
       </div>
     </header>
   )
-}
+})

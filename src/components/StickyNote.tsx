@@ -1,4 +1,9 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  memo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { MIN_NOTE_HEIGHT, MIN_NOTE_WIDTH } from '../constants'
 import type { Note, Rect } from '../types'
 
@@ -21,7 +26,7 @@ type StickyNoteProps = {
   isOverTrash: (rect: Rect) => boolean
 }
 
-export function StickyNote({
+export const StickyNote = memo(function StickyNote({
   note,
   boardWidth,
   boardHeight,
@@ -33,6 +38,22 @@ export function StickyNote({
 }: StickyNoteProps) {
   const drag = useRef<DragState | null>(null)
   const resize = useRef<DragState | null>(null)
+  const trashActive = useRef(false)
+  const [preview, setPreview] = useState<Rect | null>(null)
+  const renderedRect = preview ?? note
+
+  const updateTrashState = (rect: Rect) => {
+    const active = isOverTrash(rect)
+    if (active === trashActive.current) return
+    trashActive.current = active
+    onTrashChange(active)
+  }
+
+  const resetTrashState = () => {
+    if (!trashActive.current) return
+    trashActive.current = false
+    onTrashChange(false)
+  }
 
   const startMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -65,8 +86,9 @@ export function StickyNote({
     )
     drag.current.currentX = x
     drag.current.currentY = y
-    onChange(note.id, { x, y })
-    onTrashChange(isOverTrash({ x, y, width: note.width, height: note.height }))
+    const nextRect = { x, y, width: note.width, height: note.height }
+    setPreview(nextRect)
+    updateTrashState(nextRect)
   }
   const finishMove = () => {
     if (!drag.current) return
@@ -78,12 +100,18 @@ export function StickyNote({
     }
     drag.current = null
     const shouldRemove = isOverTrash(finalRect)
-    onTrashChange(false)
-    if (shouldRemove && window.confirm('Delete this note?')) onRemove(note.id)
+    resetTrashState()
+    setPreview(null)
+    if (shouldRemove && window.confirm('Delete this note?')) {
+      onRemove(note.id)
+      return
+    }
+    onChange(note.id, { x: finalRect.x, y: finalRect.y })
   }
   const cancelMove = () => {
     drag.current = null
-    onTrashChange(false)
+    setPreview(null)
+    resetTrashState()
   }
   const startResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
@@ -115,17 +143,31 @@ export function StickyNote({
         resize.current.noteY + event.clientY - resize.current.startY,
       ),
     )
+    resize.current.currentX = width
+    resize.current.currentY = height
+    setPreview({ x: note.x, y: note.y, width, height })
+  }
+  const finishResize = () => {
+    if (!resize.current) return
+    const width = resize.current.currentX
+    const height = resize.current.currentY
+    resize.current = null
+    setPreview(null)
     onChange(note.id, { width, height })
+  }
+  const cancelResize = () => {
+    resize.current = null
+    setPreview(null)
   }
 
   return (
     <article
       className={`sticky-note color-${note.color}`}
       style={{
-        left: note.x,
-        top: note.y,
-        width: note.width,
-        height: note.height,
+        left: renderedRect.x,
+        top: renderedRect.y,
+        width: renderedRect.width,
+        height: renderedRect.height,
         zIndex: note.zIndex,
       }}
       onPointerDown={() => onFocus(note.id)}
@@ -154,14 +196,10 @@ export function StickyNote({
         type="button"
         onPointerDown={startResize}
         onPointerMove={resizeNote}
-        onPointerUp={() => {
-          resize.current = null
-        }}
-        onPointerCancel={() => {
-          resize.current = null
-        }}
+        onPointerUp={finishResize}
+        onPointerCancel={cancelResize}
         aria-label="Resize note"
       />
     </article>
   )
-}
+})

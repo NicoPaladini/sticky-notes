@@ -6,14 +6,14 @@ The minimum supported browser window size is 1024 × 768 pixels. A message asks 
 
 ## Run locally
 
-Node.js 20 or newer is recommended.
+Node.js 22 or newer is recommended.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the address shown by Vite. Use `npm run build` to create a production build and `npm run preview` to preview it.
+Open the address shown by Vite. Use `npm run build` to create a production build and `npm run preview` to preview it. Use `npm run lint` to check the code and `npm run format:check` to check formatting.
 
 ## How to use
 
@@ -22,10 +22,11 @@ Open the address shown by Vite. Use `npm run build` to create a production build
 - Drag the dotted bar to move a note. Drag the folded bottom-right corner to resize it.
 - Type directly into a note. Click any note to move it in front of the others.
 - Move any part of a note over the trash area and drop it. Confirm the dialog to remove it. Notes are saved in local storage automatically.
+- If the window becomes too small to display every note, scroll the board to reach them. The toolbar and trash area remain visible.
 - A board can contain up to 100 notes. This limit avoids performance issues caused by rendering and saving too many notes at once. Delete an existing note before creating another when the limit is reached.
 
 ## Architecture
 
-The application is split into a small state layer and focused UI components. `useNotes` owns the note collection and all create, update, stacking, delete, and local-storage operations. `App` manages board-only interaction state, such as drawing a new note and detecting the trash zone. `Toolbar` and `StickyNote` receive typed data and callbacks, which keeps the components independent from storage details.
+The application is split into a small state layer and focused UI components. `useNotes` owns the note collection and all create, update, stacking, delete, and local-storage operations. `App` manages board-only interaction state, such as drawing a new note, sizing the scrollable canvas, and detecting the trash zone. `Toolbar` and `StickyNote` receive typed data and callbacks, which keeps the components independent from storage details.
 
-Pointer Events power creating, moving, and resizing, so one interaction model works in all supported browsers. Pointer capture keeps a drag stable even if the pointer moves quickly outside its handle. Note positions are stored relative to the board, constrained to its current bounds, and rendered absolutely for direct manipulation without a third-party component library.
+Pointer Events power creating, moving, and resizing, so one interaction model works in all supported browsers. Pointer capture keeps a drag stable even if the pointer moves quickly outside its handle. Note positions are stored relative to an expandable canvas and rendered absolutely for direct manipulation without a third-party component library. Dragging and resizing update only the active note and commit the final geometry when the interaction ends. Memoized components and stable callbacks prevent unrelated notes and the toolbar from rendering during these interactions.
